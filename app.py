@@ -10,9 +10,24 @@ app.secret_key = os.environ.get("SECRET", 'thankyoutonystark#weloveyou3000')
 CORS(app)
 
 
+def replace_media_url_with_download_url(obj):
+    if isinstance(obj, dict):
+        new_obj = {}
+        for k, v in obj.items():
+            if k == "media_url":
+                new_obj["downloadUrl"] = replace_media_url_with_download_url(v)
+            else:
+                new_obj[k] = replace_media_url_with_download_url(v)
+        return new_obj
+    elif isinstance(obj, list):
+        return [replace_media_url_with_download_url(item) for item in obj]
+    else:
+        return obj
+
+
 @app.route('/')
 def home():
-    return redirect("https://cyberboysumanjay.github.io/JioSaavnAPI/")
+    return redirect("https://jiosaavn.funtoonsmultimedia.workers.dev/")
 
 
 @app.route('/song/')
@@ -27,7 +42,9 @@ def search():
     if songdata_ and songdata_.lower() != 'true':
         songdata = False
     if query:
-        return jsonify(jiosaavn.search_for_song(query, lyrics, songdata))
+        result = jiosaavn.search_for_song(query, lyrics, songdata)
+        result = replace_media_url_with_download_url(result)
+        return jsonify(result)
     else:
         error = {
             "status": False,
@@ -52,6 +69,7 @@ def get_song():
             }
             return jsonify(error)
         else:
+            resp = replace_media_url_with_download_url(resp)
             return jsonify(resp)
     else:
         error = {
@@ -71,6 +89,7 @@ def playlist():
     if query:
         id = jiosaavn.get_playlist_id(query)
         songs = jiosaavn.get_playlist(id, lyrics)
+        songs = replace_media_url_with_download_url(songs)
         return jsonify(songs)
     else:
         error = {
@@ -90,6 +109,7 @@ def album():
     if query:
         id = jiosaavn.get_album_id(query)
         songs = jiosaavn.get_album(id, lyrics)
+        songs = replace_media_url_with_download_url(songs)
         return jsonify(songs)
     else:
         error = {
@@ -138,24 +158,29 @@ def result():
         lyrics = True
 
     if 'saavn' not in query:
-        return jsonify(jiosaavn.search_for_song(query, lyrics, True))
+        result = jiosaavn.search_for_song(query, lyrics, True)
+        result = replace_media_url_with_download_url(result)
+        return jsonify(result)
     try:
         if '/song/' in query:
             print("Song")
             song_id = jiosaavn.get_song_id(query)
             song = jiosaavn.get_song(song_id, lyrics)
+            song = replace_media_url_with_download_url(song)
             return jsonify(song)
 
         elif '/album/' in query:
             print("Album")
             id = jiosaavn.get_album_id(query)
             songs = jiosaavn.get_album(id, lyrics)
+            songs = replace_media_url_with_download_url(songs)
             return jsonify(songs)
 
         elif '/playlist/' or '/featured/' in query:
             print("Playlist")
             id = jiosaavn.get_playlist_id(query)
             songs = jiosaavn.get_playlist(id, lyrics)
+            songs = replace_media_url_with_download_url(songs)
             return jsonify(songs)
 
     except Exception as e:
